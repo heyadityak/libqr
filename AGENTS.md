@@ -63,9 +63,8 @@ libqr/
 │   ├── core/                  spec logic. Pure. No DOM. No I/O.
 │   │   ├── qr.js              orchestrator: encode(data, opts) → QrResult
 │   │   ├── segment.js         segment model + optimal segmentation (mode switching)
-│   │   ├── mode.js            mode detection & mode indicator bits
+│   │   ├── mode.js            mode detection; reads mode constants from encode/
 │   │   ├── version.js         version selection, capacity tables, size math
-│   │   ├── bitbuffer.js       append-only bit writer (Uint8Array backed)
 │   │   ├── matrix.js          module grid; function-pattern placement & reservation
 │   │   ├── patterns.js        finder, timing, alignment, dark module
 │   │   ├── mask.js            8 mask patterns + penalty scoring + best-mask pick
@@ -76,9 +75,11 @@ libqr/
 │   │   ├── galois.js          GF(256) log/exp tables, mul/div
 │   │   ├── polynomial.js      poly mul, mod
 │   │   ├── reed-solomon.js    generator polys, ECC codeword computation
-│   │   └── blocks.js          block splitting + codeword interleaving
+│   │   └── blocks.js          block splitting + interleaving. Takes a
+│   │                          descriptor; holds no tables (ADR-0012).
 │   │
-│   ├── encode/                per-mode bit encoders
+│   ├── encode/                per-mode bit encoders. Each owns its own mode
+│   │   │                      indicator + count-width triple (ADR-0012).
 │   │   ├── numeric.js
 │   │   ├── alphanumeric.js
 │   │   ├── byte.js            UTF-8 (default) and Latin-1
@@ -102,6 +103,9 @@ libqr/
 │   ├── util/
 │   │   ├── errors.js          typed error classes (see §5)
 │   │   ├── assert.js          dev-time invariant checks, stripped in prod build
+│   │   ├── bitbuffer.js       append-only bit writer (Uint8Array backed). In
+│   │   │                      util/, not core/ -- both core/ and encode/ need
+│   │   │                      it (ADR-0012).
 │   │   └── text.js            UTF-8 encoding, codepoint classification
 │   │
 │   └── types/
@@ -144,6 +148,7 @@ util  ←  ec  ←  core  ←  render  ←  dom
 ```
 
 - Arrows point **toward the importer**. `core` may import `ec`, `encode`, `util`. `render` may import `core` and `util`. `dom` may import everything.
+- **Spec data lives at the lowest layer that owns the concept; layers below take it as a parameter** rather than reading upward — see [ADR-0012](docs/adr/0012-spec-data-placement-across-layers.md). The lint zones have no `except` clauses, deliberately.
 - **Nothing imports downstream.** `core` importing from `render/` or `dom/` is a review-blocking error.
 - `src/index.js` is the only file allowed to re-export across layers.
 
@@ -161,18 +166,32 @@ util  ←  ec  ←  core  ←  render  ←  dom
 
 ```js
 // Primary
-export function qr(data, options)          // → { matrix, version, ecLevel, mask, size }
+export function qr(data, options)          // → QrResult
 export function toSvg(data, options)       // → string
-export function toCanvas(ctx, data, options)
-export function toDataUrl(data, options)   // → Promise<string>  (browser)
 export function toAscii(data, options)     // → string
 
-// Lower level
+// Lower level — for consumers holding a matrix already
 export { encode } from './core/qr.js'      // data → matrix, no rendering
-export { QrError, CapacityError, ModeError } from './util/errors.js'
+export { matrixToSvg } from './render/svg.js'
+export { matrixToAscii } from './render/ascii.js'
+export { Matrix } from './core/matrix.js'
+export { normalizeOptions, DEFAULTS as DEFAULT_OPTIONS } from './util/options.js'
+
+// Errors
+export { QrError, CapacityError, ModeError, OptionError } from './util/errors.js'
 
 // Constants
-export { ECLevel, Mode, MAX_VERSION } from './core/constants.js'
+export { ECLevel, MAX_VERSION, MIN_VERSION } from './core/constants.js'
+export { Mode } from './core/mode.js'
+```
+
+`toCanvas`, `toDataUrl`, Kanji mode, and the custom element are **not** here. They live behind their own entry points so the default path keeps its size budget — see [ADR-0006](docs/adr/0006-multiple-entry-points-size-budget.md):
+
+```js
+import { toCanvas } from 'libqr/canvas';
+import { toDataUrl } from 'libqr/png';
+import 'libqr/kanji';    // registers Shift-JIS support
+import 'libqr/element';  // defines <qr-code>
 ```
 
 ### Options object — the single shape used everywhere
@@ -196,7 +215,7 @@ export { ECLevel, Mode, MAX_VERSION } from './core/constants.js'
 }
 ```
 
-**Rules.** Options are validated once, at the public boundary, by a single validator. Internal functions assume a normalized options object and do not re-validate. Unknown keys are ignored silently (forward compatibility), never thrown on.
+**Rules.** Options are validated once per public call, by the single validator in `src/util/options.js` — there is more than one public boundary, so it lives at the bottom layer where all of them can reach it ([ADR-0013](docs/adr/0013-option-normalization-placement.md)). Internal functions assume a normalized, frozen options object and do not re-validate; `core/qr.js` exposes `encodeNormalized()` for callers that have already normalized. Unknown keys are ignored silently (forward compatibility), never thrown on.
 
 ---
 
@@ -268,6 +287,8 @@ Whenever you touch any of the above, add or update a golden vector in `test/gold
 - Non-ASCII input under UTF-8 with and without an explicit ECI.
 
 **Golden vectors are append-only.** If a change makes an existing vector fail, the change is wrong — unless you can cite the spec clause proving the vector was wrong, in which case update the vector and raise an ADR — see `docs/adr/0008-golden-vectors-conformance-gate.md`.
+
+**Every vector declares its `source`** ([ADR-0014](docs/adr/0014-golden-vector-provenance.md)): `published` means the expected value comes from an ISO/IEC 18004 worked example and is independent evidence; `regression` means it only locks in current output. Regression vectors must additionally decode back to their input, so a lock is never merely "whatever the code did". Do not add a `published` vector without a `note` naming where the value came from.
 
 Target commands (create these scripts in `package.json` as the project takes shape):
 

@@ -1,0 +1,59 @@
+{
+  "name": "libqr",
+  "version": "0.1.0",
+  "description": "Zero-dependency QR code generator for the browser and Node",
+  "license": "MIT",
+  "author": "Aditya K",
+  "type": "module",
+  "sideEffects": [
+    "./src/encode/kanji.js",
+    "./src/dom/element.js"
+  ],
+  "exports": {
+    ".": "./src/index.js",
+    "./svg": "./src/render/svg.js",
+    "./canvas": "./src/render/canvas.js",
+    "./png": "./src/render/png.js",
+    "./kanji": "./src/encode/kanji.js",
+    "./element": "./src/dom/element.js",
+    "./package.json": "./package.json"
+  },
+  "main": "./src/index.js",
+  "module": "./src/index.js",
+  "types": "./src/types/index.d.ts",
+  "files": [
+    "dist",
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:types": "tsc --noEmit -p test/types/tsconfig.json",
+    "gen:tables": "node scripts/gen-tables.js",
+    "check:tables": "node scripts/gen-tables.js && git diff --exit-code src/core/constants.js",
+    "check:deps": "node scripts/check-deps.js",
+    "bench": "vitest bench --run"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.0",
+    "eslint": "^9.39.0",
+    "eslint-plugin-import": "^2.32.0",
+    "jsqr": "^1.4.0",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
+  },
+  "keywords": [
+    "qr",
+    "qrcode",
+    "qr-code",
+    "svg",
+    "canvas",
+    "zero-dependency"
+  ]
+}

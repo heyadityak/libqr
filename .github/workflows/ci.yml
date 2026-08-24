@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # ADR-0001: zero runtime dependencies, permanently.
+      - name: Dependencies are empty
+        run: npm run check:deps
+
+      # ADR-0003 / ADR-0004 / ADR-0009: layer boundaries, purity, typed errors.
+      - name: Lint
+        run: npm run lint
+
+      # ADR-0007: the committed tables must provably match the generator.
+      - name: Tables match generator
+        run: npm run check:tables
+
+      # ADR-0008: golden vectors are the conformance gate.
+      - name: Test
+        run: npm test
+
+      # ADR-0002: the hand-written .d.ts must match the real public surface.
+      - name: Types
+        run: npm run test:types
