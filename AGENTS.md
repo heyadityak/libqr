@@ -1,6 +1,6 @@
 # AGENTS.md — libqr
 
-Operating manual for AI agents working in this repository. Read this file fully before your first edit in a session. If something here conflicts with a user instruction, the user wins — but say out loud that you are deviating, and record it under `.memory/decisions/`.
+Operating manual for AI agents working in this repository. Read this file fully before your first edit in a session. If something here conflicts with a user instruction, the user wins — but say out loud that you are deviating, and raise an ADR in `docs/adr/`.
 
 ---
 
@@ -53,7 +53,6 @@ libqr/
 │
 ├── .memory/                   ← agent hand-off notes. See §9. COMMITTED.
 │   ├── INDEX.md
-│   ├── decisions/
 │   ├── handoff/
 │   ├── investigations/
 │   └── gotchas/
@@ -124,6 +123,9 @@ libqr/
 │
 ├── examples/                  plain .html files, no build step, opened directly
 ├── docs/
+│   ├── adr/                   ARCHITECTURE DECISION RECORDS. See §9.8.
+│   │   ├── README.md          index, numbering, lifecycle, recording obligation
+│   │   └── NNNN-*.md          one decision each, MADR-lite
 │   ├── api.md                 generated from JSDoc + hand edits
 │   └── spec-notes.md          ISO/IEC 18004 reading notes, table provenance
 ├── scripts/
@@ -147,7 +149,7 @@ util  ←  ec  ←  core  ←  render  ←  dom
 
 ### Adding a file — checklist
 
-1. Does it belong to an existing layer? Put it there. Do not create a new top-level `src/` directory without recording the reason in `.memory/decisions/`.
+1. Does it belong to an existing layer? Put it there. Do not create a new top-level `src/` directory without raising an ADR (§9.8).
 2. Add the mirrored test file under `test/unit/` in the same relative path.
 3. If it changes the public surface: update `src/index.js`, `src/types/index.d.ts`, `README.md`, and `CHANGELOG.md`.
 
@@ -265,7 +267,7 @@ Whenever you touch any of the above, add or update a golden vector in `test/gold
 - Empty string, single character, and exact-capacity input (the off-by-one that capacity math always gets wrong).
 - Non-ASCII input under UTF-8 with and without an explicit ECI.
 
-**Golden vectors are append-only.** If a change makes an existing vector fail, the change is wrong — unless you can cite the spec clause proving the vector was wrong, in which case update the vector and record the reasoning in `.memory/decisions/`.
+**Golden vectors are append-only.** If a change makes an existing vector fail, the change is wrong — unless you can cite the spec clause proving the vector was wrong, in which case update the vector and raise an ADR — see `docs/adr/0008-golden-vectors-conformance-gate.md`.
 
 Target commands (create these scripts in `package.json` as the project takes shape):
 
@@ -313,18 +315,21 @@ There are two distinct stores — do not confuse them:
 | **Repo memory** | `.memory/` in this repo | Shared across every agent and human who clones the repo | **Yes** |
 | Private memory | your own agent memory directory | Personal to one agent/user, includes user preferences | No |
 
-Everything below is about **repo memory** (`.memory/`). Project decisions, hand-offs, and gotchas go there so the next agent — regardless of which one — finds them.
+Sections 9.1–9.7 are about **repo memory** (`.memory/`) — hand-offs, investigations, and gotchas, so the next agent finds them regardless of which one it is.
+
+**Architecture decisions do not live in `.memory/`.** They live in `docs/adr/`. See §9.8 — that split is deliberate and load-bearing.
 
 ### 9.1 Layout
 
 ```
 .memory/
 ├── INDEX.md            one line per entry. The only file loaded on every session start.
-├── decisions/          why we chose X over Y. Durable.
 ├── handoff/            state of in-flight work. Ephemeral — delete when the work lands.
 ├── investigations/     what we learned digging into a problem. Durable.
 └── gotchas/            traps that already cost someone an hour. Durable.
 ```
+
+No `decisions/` directory. Architecture decisions go to `docs/adr/` (§9.8).
 
 ### 9.2 File format
 
@@ -334,7 +339,7 @@ One file, one topic. Filename `YYYY-MM-DD-kebab-slug.md`. Every file starts with
 ---
 title: Reed–Solomon block interleaving order
 date: 2026-08-24
-type: investigation        # decision | handoff | investigation | gotcha
+type: investigation        # handoff | investigation | gotcha
 status: current            # current | superseded | done
 area: ec/blocks.js         # file or subsystem this concerns
 related: [2026-08-20-version-capacity-tables]
@@ -356,8 +361,6 @@ Concrete: the file to open, the function to call, the command to run, the next s
 Cross-link with `[[2026-08-24-slug]]`. A link to a file that does not exist yet is fine — it marks something worth writing.
 
 ### 9.3 Type-specific bodies
-
-**`decisions/`** — add `## Options considered` and `## Rejected because`. State the constraint that forced the call (usually size budget, spec conformance, or zero-dependency). Never delete a superseded decision; set `status: superseded` and link forward to the one that replaced it. The history of *why not* is the valuable part.
 
 **`handoff/`** — this is the one you must write before a session ends with work unfinished. Required sections:
 
@@ -390,9 +393,6 @@ Plain list, one line per entry, newest first per section. No frontmatter. **Neve
 ```markdown
 # Memory index
 
-## Decisions
-- [Hand-written .d.ts over TS build](decisions/2026-08-24-no-typescript-build.md) — keeps zero-dep, zero-build source
-
 ## Handoff
 - [Mask penalty N3 rewrite](handoff/2026-08-24-mask-n3.md) — WIP, 2 golden vectors failing
 
@@ -407,7 +407,7 @@ Plain list, one line per entry, newest first per section. No frontmatter. **Neve
 
 Write memory when:
 
-- You made a non-obvious call another agent could plausibly reverse by accident.
+- You made a non-obvious call another agent could plausibly reverse by accident. **If it is a build decision, it goes to `docs/adr/` — see §9.8.**
 - You lost meaningful time to something surprising.
 - A session ends with work in flight — **always** a `handoff/` file, no exceptions.
 - You derived or verified a spec constant the hard way.
@@ -431,9 +431,32 @@ Write memory when:
 
 ### 9.7 Session start / session end
 
-**Start:** read `AGENTS.md`, then `.memory/INDEX.md`, then any `handoff/` file with `status: current`. That is your briefing — do it before touching code.
+**Start:** read `AGENTS.md`, then `docs/adr/README.md` (the index — the ADR bodies only as needed), then `.memory/INDEX.md`, then any `handoff/` file with `status: current`. That is your briefing — do it before touching code.
 
-**End:** if work is incomplete, write the handoff. If you learned something durable, write it to the right folder. Update `INDEX.md`. Then report to the user: what changed, where it lives, and the next command to run.
+**End:** if work is incomplete, write the handoff. If you took a build decision, the ADR and its memory pointer must already exist (§9.8) — they are not end-of-session cleanup. If you learned something durable, write it to the right folder. Update `INDEX.md`. Then report to the user: what changed, where it lives, and the next command to run.
+
+### 9.8 Architecture decisions — the recording obligation
+
+**Every build decision is recorded when it is taken, not retroactively.**
+
+A "build decision" is anything that shapes how the library is constructed or shipped: a dependency taken or refused, a build or tooling choice, a layering or module-boundary change, a public API shape, a default option value, a testing gate, an entry point, a release policy. If you weighed options, it is a build decision.
+
+The obligation is a **dual write** — both, every time:
+
+1. **`docs/adr/NNNN-slug.md`** — the ADR. Context, decision, consequences (good and bad), alternatives with why each was rejected, and how the decision is enforced. Follow the template in `docs/adr/README.md`. Add the row to that file's index table.
+2. **Your own agent memory** — a short pointer entry: what was decided, and that it is recorded in `docs/adr/NNNN-slug.md`. **Pointer only.** Never copy the ADR body into memory; the copy drifts from the file it duplicates and then actively misleads.
+
+The ADR is the durable record in the repo. The memory pointer is what makes a future cold-start session go and read it instead of re-deciding from scratch. Neither substitutes for the other.
+
+Rules:
+
+- **Same change as the decision.** The ADR lands in the commit or PR that puts the decision into effect, so code and rationale are never separated.
+- **Not settled yet?** Write it with `status: proposed`. A visible open question is useful; an unrecorded settled decision is not.
+- **Reversing an existing decision** means superseding its ADR — new file, `supersedes` and `superseded-by` filled in on both sides. Never edit an accepted ADR in place, and never delete one.
+- **Numbers are permanent.** Zero-padded four digits, monotonic, never reused, never renumbered.
+- Every ADR needs a non-empty `## Enforcement` section. If nothing mechanical can enforce it, write "review only" and say so plainly.
+
+`docs/adr/README.md` holds the full process, the lifecycle, and the copy-paste template.
 
 ---
 
@@ -450,6 +473,7 @@ A change is done when all of these hold:
 - [ ] `README.md` and `CHANGELOG.md` updated if the public API moved.
 - [ ] Zero runtime dependencies still true.
 - [ ] Dependency direction (§2) unviolated.
+- [ ] Any build decision taken is recorded as an ADR in `docs/adr/` **and** as a pointer in agent memory (§9.8).
 - [ ] `.memory/` updated if anything non-obvious was decided or learned.
 
 If you cannot satisfy an item, say which one and why — do not quietly drop it.
