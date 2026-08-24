@@ -1,0 +1,84 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>libqr — custom element</title>
+<style>
+  body { font: 16px/1.5 system-ui, sans-serif; margin: 2rem auto; max-width: 44rem; padding: 0 1rem; }
+  pre { background: #f2f2f2; padding: 0.75rem; border-radius: 4px; overflow-x: auto; }
+  .gallery { display: flex; flex-wrap: wrap; gap: 1.5rem; margin-top: 1.5rem; }
+  figure { margin: 0; text-align: center; }
+  figcaption { font-size: 0.85rem; color: #555; margin-top: 0.4rem; }
+  input { font: inherit; padding: 0.4rem; width: 100%; box-sizing: border-box; }
+  #status { color: #555; font-size: 0.9rem; }
+  #status.error { color: #b00; }
+</style>
+
+<h1>&lt;qr-code&gt;</h1>
+<p>Importing the entry point defines the element. Attributes are reflected, so changing one re-renders.</p>
+
+<pre>&lt;script type="module"&gt;import 'libqr/element';&lt;/script&gt;
+&lt;qr-code data="https://example.com" ec-level="Q" scale="6"&gt;&lt;/qr-code&gt;</pre>
+
+<label for="text">Edit the payload — every code below updates</label>
+<input id="text" value="https://example.com">
+<p id="status"></p>
+
+<div class="gallery">
+  <figure><qr-code id="a" data="https://example.com" ec-level="L" scale="4"></qr-code><figcaption>level L</figcaption></figure>
+  <figure><qr-code id="b" data="https://example.com" ec-level="H" scale="4"></qr-code><figcaption>level H</figcaption></figure>
+  <figure><qr-code id="c" data="https://example.com" shape="dot" scale="4" dark="#1a1a2e"></qr-code><figcaption>dot</figcaption></figure>
+  <figure><qr-code id="d" data="https://example.com" shape="rounded" scale="4" dark="#0b6e4f"></qr-code><figcaption>rounded</figcaption></figure>
+</div>
+
+<script type="module">
+  import { loadLibqr } from './boot.js';
+
+  // Importing the module is what defines <qr-code>; nothing is destructured.
+  await loadLibqr(['dom/element.js']);
+
+  const input = document.getElementById('text');
+  const status = document.getElementById('status');
+  const codes = [...document.querySelectorAll('qr-code')];
+
+  /**
+   * Reads the current state off an element.
+   *
+   * The element also *reports* state -- `qr-render` and `qr-error` -- but events
+   * only reach listeners attached before they fire, and these elements render in
+   * `connectedCallback`, which the parser triggers before this module script
+   * runs. So the first render is always missed. Reading the properties covers it,
+   * and the events cover every render after.
+   *
+   * Worth knowing for any custom element: if the markup is in the HTML rather
+   * than created from script, assume it has already rendered by the time you get
+   * a listener on it.
+   */
+  function report(code) {
+    if (code.error !== null) {
+      status.className = 'error';
+      status.textContent = `${code.error.name}: ${code.error.message}`;
+      return;
+    }
+    if (code.result === null) return;
+    status.className = '';
+    const { version, size, mask, ecLevel } = code.result;
+    status.textContent = `version ${version} · ${size}×${size} modules · level ${ecLevel} · mask ${mask}`;
+  }
+
+  for (const code of codes) {
+    // The element reports failures on itself rather than throwing, so a bad
+    // payload does not take the page down.
+    code.addEventListener('qr-error', () => report(code));
+  }
+
+  codes[0].addEventListener('qr-render', () => report(codes[0]));
+
+  input.addEventListener('input', () => {
+    for (const code of codes) code.setAttribute('data', input.value);
+  });
+
+  // Catch up on the render that already happened. With the element defined by an
+  // awaited import, upgrade happens when that import resolves -- which may be
+  // after or before this line, so wait for the definition to be certain.
+  await customElements.whenDefined('qr-code');
+  report(codes[0]);
+</script>

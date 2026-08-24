@@ -1,0 +1,81 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      # ADR-0001: zero runtime dependencies, permanently.
+      - name: Dependencies are empty
+        run: npm run check:deps
+
+      # ADR-0003 / ADR-0004 / ADR-0009: layer boundaries, purity, typed errors.
+      - name: Lint
+        run: npm run lint
+
+      # ADR-0007: the committed tables must provably match the generator.
+      - name: Tables match generator
+        run: npm run check:tables
+
+      # ADR-0008 / ADR-0014: golden vectors are the conformance gate.
+      - name: Test
+        run: npm test
+
+      # ADR-0002: the hand-written .d.ts must match the real public surface.
+      - name: Types
+        run: npm run test:types
+
+      - name: Build
+        run: npm run build
+
+      # ADR-0006: per-entry-point gzip budgets. Also fails on any growth against
+      # the committed baseline, which is what makes ADR-0011's "default entry
+      # size unchanged" gate for M9 and M10 mechanical.
+      - name: Size budget
+        run: npm run size
+
+      # The bundles are what most consumers actually load, so they get smoke
+      # tested rather than assumed to work.
+      - name: Bundles load and encode
+        run: npm run check:bundles
+
+  browser:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      # Covers what a Node test cannot: that the canvas renderer draws the right
+      # pixels, that PNG output is a real image, and that <qr-code> behaves in a
+      # live document. Everything else runs under vitest against src/, which is
+      # far faster -- ADR-0004 is what makes that split possible.
+      - name: Browser tests
+        run: npm run test:browser
+
+      - name: Upload traces on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-traces
+          path: test-results/
+          retention-days: 7

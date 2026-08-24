@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "strict": true,
+    "noEmit": true,
+    "target": "ES2022",
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "skipLibCheck": false,
+    "types": [],
+    "baseUrl": ".",
+    "paths": { "libqr": ["../../src/types/index.d.ts"] }
+  },
+  "include": ["*.ts", "../../src/types/*.d.ts"]
+}

@@ -1,0 +1,70 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>libqr — basic</title>
+<style>
+  body { font: 16px/1.5 system-ui, sans-serif; margin: 2rem auto; max-width: 44rem; padding: 0 1rem; }
+  label { display: block; margin: 1rem 0 0.25rem; font-weight: 600; }
+  input, select { font: inherit; padding: 0.4rem; width: 100%; box-sizing: border-box; }
+  .row { display: flex; gap: 1rem; }
+  .row > * { flex: 1; }
+  #out { margin-top: 1.5rem; }
+  #meta { color: #555; font-size: 0.9rem; }
+  #error { color: #b00; }
+</style>
+
+<h1>libqr</h1>
+<p>No build step. This page imports the source directly.</p>
+
+<label for="text">Payload</label>
+<input id="text" value="https://example.com">
+
+<div class="row">
+  <div>
+    <label for="level">Error correction</label>
+    <select id="level"><option>L</option><option selected>M</option><option>Q</option><option>H</option></select>
+  </div>
+  <div>
+    <label for="shape">Shape</label>
+    <select id="shape"><option>square</option><option>dot</option><option>rounded</option></select>
+  </div>
+  <div>
+    <label for="scale">Scale</label>
+    <input id="scale" type="number" value="6" min="1" max="32">
+  </div>
+</div>
+
+<div id="out"></div>
+<p id="meta"></p>
+<p id="error"></p>
+
+<script type="module">
+  import { loadLibqr } from './boot.js';
+
+  const [{ qr, matrixToSvg }] = await loadLibqr(['index.js']);
+
+  const fields = ['text', 'level', 'shape', 'scale'].map((id) => document.getElementById(id));
+  const out = document.getElementById('out');
+  const meta = document.getElementById('meta');
+  const error = document.getElementById('error');
+
+  function render() {
+    error.textContent = '';
+    try {
+      const result = qr(fields[0].value, { ecLevel: fields[1].value });
+      out.innerHTML = matrixToSvg(result.matrix, {
+        scale: Number(fields[3].value),
+        shape: fields[2].value,
+      });
+      meta.textContent = `version ${result.version} · ${result.size}×${result.size} modules · `
+        + `level ${result.ecLevel} · mask ${result.mask}`
+        + (result.eci === undefined ? '' : ` · ECI ${result.eci}`);
+    } catch (e) {
+      out.innerHTML = '';
+      meta.textContent = '';
+      error.textContent = `${e.name}: ${e.message}`;
+    }
+  }
+
+  for (const field of fields) field.addEventListener('input', render);
+  render();
+</script>

@@ -1,0 +1,99 @@
+{
+  "name": "libqr",
+  "version": "0.2.0",
+  "description": "Zero-dependency QR code generator for the browser and Node",
+  "license": "MIT",
+  "author": "Aditya K",
+  "type": "module",
+  "sideEffects": [
+    "./src/encode/kanji.js",
+    "./src/dom/element.js"
+  ],
+  "exports": {
+    ".": {
+      "types": "./src/types/index.d.ts",
+      "require": "./dist/libqr.cjs",
+      "default": "./src/index.js"
+    },
+    "./svg": {
+      "types": "./src/types/svg.d.ts",
+      "require": "./dist/libqr-svg.cjs",
+      "default": "./src/render/svg.js"
+    },
+    "./canvas": {
+      "types": "./src/types/canvas.d.ts",
+      "require": "./dist/libqr-canvas.cjs",
+      "default": "./src/render/canvas.js"
+    },
+    "./png": {
+      "types": "./src/types/png.d.ts",
+      "require": "./dist/libqr-png.cjs",
+      "default": "./src/render/png.js"
+    },
+    "./logo": {
+      "types": "./src/types/logo.d.ts",
+      "require": "./dist/libqr-logo.cjs",
+      "default": "./src/render/logo.js"
+    },
+    "./kanji": {
+      "require": "./dist/libqr-kanji.cjs",
+      "default": "./src/encode/kanji.js"
+    },
+    "./element": {
+      "types": "./src/types/element.d.ts",
+      "require": "./dist/libqr-element.cjs",
+      "default": "./src/dom/element.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "main": "./dist/libqr.cjs",
+  "module": "./src/index.js",
+  "types": "./src/types/index.d.ts",
+  "files": [
+    "dist",
+    "src",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:types": "tsc --noEmit -p test/types/tsconfig.json",
+    "gen:tables": "node scripts/gen-tables.js",
+    "check:tables": "node scripts/gen-tables.js && git diff --exit-code src/core/constants.js",
+    "check:deps": "node scripts/check-deps.js",
+    "bench": "vitest bench --run",
+    "build": "rollup -c",
+    "size": "node scripts/size-check.js",
+    "size:accept": "node scripts/size-check.js --accept",
+    "prepublishOnly": "npm run lint && npm test && npm run build && npm run size",
+    "check:bundles": "node scripts/check-bundles.js",
+    "test:browser": "playwright test",
+    "serve": "node scripts/serve.js"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.39.0",
+    "@playwright/test": "^1.62.1",
+    "@rollup/plugin-terser": "^1.0.0",
+    "eslint": "^9.39.0",
+    "eslint-plugin-import": "^2.32.0",
+    "jsqr": "^1.4.0",
+    "rollup": "^4.62.5",
+    "typescript": "^5.9.3",
+    "vitest": "^3.2.4"
+  },
+  "keywords": [
+    "qr",
+    "qrcode",
+    "qr-code",
+    "svg",
+    "canvas",
+    "zero-dependency"
+  ],
+  "unpkg": "./dist/libqr.iife.min.js",
+  "jsdelivr": "./dist/libqr.iife.min.js"
+}

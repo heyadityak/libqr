@@ -1,0 +1,103 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>libqr browser harness</title>
+<canvas id="canvas"></canvas>
+<div id="mount"></div>
+<div id="elements"></div>
+<script type="module">
+  import { qr, matrixToSvg } from '/src/index.js';
+  import { matrixToCanvas, canvasSizeFor } from '/src/render/canvas.js';
+  import { matrixToDataUrl, matrixToBlob } from '/src/render/png.js';
+  import { mount } from '/src/dom/mount.js';
+  import '/src/dom/element.js';
+
+  /**
+   * Samples the centre pixel of every module, so a test can compare what was
+   * drawn against the matrix the encoder produced. Stronger than decoding: it
+   * checks the renderer reproduced the symbol exactly, not merely that a
+   * lenient decoder could read it.
+   */
+  function sampleGrid(ctx, { size, scale, quietZone }) {
+    const rows = [];
+    for (let row = 0; row < size; row += 1) {
+      let line = '';
+      for (let col = 0; col < size; col += 1) {
+        const x = Math.floor((quietZone + col + 0.5) * scale);
+        const y = Math.floor((quietZone + row + 0.5) * scale);
+        const [r, g, b] = ctx.getImageData(x, y, 1, 1).data;
+        line += (r + g + b) / 3 < 128 ? '1' : '0';
+      }
+      rows.push(line);
+    }
+    return rows;
+  }
+
+  window.libqrHarness = {
+    qr,
+    matrixToSvg,
+    matrixToCanvas,
+    canvasSizeFor,
+    matrixToDataUrl,
+    matrixToBlob,
+    mount,
+    sampleGrid,
+
+    /** Encodes, draws to the canvas, and samples the result back. */
+    canvasRoundTrip(data, options = {}) {
+      const scale = options.scale ?? 6;
+      const quietZone = options.quietZone ?? 4;
+      const result = qr(data, options);
+      const canvas = document.getElementById('canvas');
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+      matrixToCanvas(ctx, result.matrix, { ...options, scale, quietZone });
+      return {
+        expected: rowsOf(result.matrix),
+        drawn: sampleGrid(ctx, { size: result.size, scale, quietZone }),
+        pixels: canvasSizeFor(result.matrix, { scale, quietZone }),
+        canvasWidth: canvas.width,
+        version: result.version,
+      };
+    },
+
+    /** Encodes, renders a PNG, loads it back, and samples the result. */
+    async pngRoundTrip(data, options = {}) {
+      const scale = options.scale ?? 6;
+      const quietZone = options.quietZone ?? 4;
+      const result = qr(data, options);
+      const url = await matrixToDataUrl(result.matrix, { ...options, scale, quietZone });
+
+      const image = new Image();
+      await new Promise((resolveImage, rejectImage) => {
+        image.onload = resolveImage;
+        image.onerror = () => rejectImage(new Error('PNG failed to load'));
+        image.src = url;
+      });
+
+      const canvas = document.createElement('canvas');
+      canvas.width = image.width;
+      canvas.height = image.height;
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+      ctx.drawImage(image, 0, 0);
+
+      return {
+        expected: rowsOf(result.matrix),
+        drawn: sampleGrid(ctx, { size: result.size, scale, quietZone }),
+        isPng: url.startsWith('data:image/png;base64,'),
+        width: image.width,
+        expectedWidth: canvasSizeFor(result.matrix, { scale, quietZone }),
+      };
+    },
+  };
+
+  function rowsOf(matrix) {
+    const rows = [];
+    for (let row = 0; row < matrix.size; row += 1) {
+      let line = '';
+      for (let col = 0; col < matrix.size; col += 1) line += matrix.get(row, col) ? '1' : '0';
+      rows.push(line);
+    }
+    return rows;
+  }
+
+  window.libqrReady = true;
+</script>
