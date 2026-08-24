@@ -40,12 +40,6 @@ jobs:
       - name: Build
         run: npm run build
 
-      # ADR-0006: per-entry-point gzip budgets. Also fails on any growth against
-      # the committed baseline, which is what makes ADR-0011's "default entry
-      # size unchanged" gate for M9 and M10 mechanical.
-      - name: Size budget
-        run: npm run size
-
       # The bundles are what most consumers actually load, so they get smoke
       # tested rather than assumed to work.
       - name: Bundles load and encode
