@@ -1,0 +1,86 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>libqr — canvas and PNG</title>
+<style>
+  body { font: 16px/1.5 system-ui, sans-serif; margin: 2rem auto; max-width: 44rem; padding: 0 1rem; }
+  label { display: block; margin: 1rem 0 0.25rem; font-weight: 600; }
+  input, select, button { font: inherit; padding: 0.4rem; }
+  input, select { width: 100%; box-sizing: border-box; }
+  .row { display: flex; gap: 1rem; }
+  .row > * { flex: 1; }
+  canvas { margin-top: 1.5rem; max-width: 100%; height: auto; }
+  #meta { color: #555; font-size: 0.9rem; }
+  #error { color: #b00; }
+</style>
+
+<h1>Canvas and PNG</h1>
+<p>Two imports: the encoder from <code>libqr</code>, the renderer from <code>libqr/canvas</code>. That keeps canvas support out of bundles that do not use it.</p>
+
+<label for="text">Payload</label>
+<input id="text" value="https://example.com/receipt/8f3a19c2">
+
+<div class="row">
+  <div>
+    <label for="level">Error correction</label>
+    <select id="level"><option>L</option><option selected>M</option><option>Q</option><option>H</option></select>
+  </div>
+  <div>
+    <label for="shape">Shape</label>
+    <select id="shape"><option>square</option><option>dot</option><option>rounded</option></select>
+  </div>
+  <div>
+    <label for="scale">Scale</label>
+    <input id="scale" type="number" value="8" min="1" max="32">
+  </div>
+</div>
+
+<p><button id="download">Save as PNG</button></p>
+
+<canvas id="canvas"></canvas>
+<p id="meta"></p>
+<p id="error"></p>
+
+<script type="module">
+  import { qr } from '../src/index.js';
+  import { matrixToCanvas } from '../src/render/canvas.js';
+  import { matrixToBlob } from '../src/render/png.js';
+
+  const fields = ['text', 'level', 'shape', 'scale'].map((id) => document.getElementById(id));
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d');
+  const meta = document.getElementById('meta');
+  const error = document.getElementById('error');
+  let current = null;
+
+  function render() {
+    error.textContent = '';
+    try {
+      current = qr(fields[0].value, { ecLevel: fields[1].value });
+      matrixToCanvas(ctx, current.matrix, {
+        scale: Number(fields[3].value),
+        shape: fields[2].value,
+      });
+      meta.textContent = `version ${current.version} · ${current.size}×${current.size} modules · `
+        + `level ${current.ecLevel} · mask ${current.mask} · ${canvas.width}px`;
+    } catch (e) {
+      current = null;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      meta.textContent = '';
+      error.textContent = `${e.name}: ${e.message}`;
+    }
+  }
+
+  document.getElementById('download').addEventListener('click', async () => {
+    if (current === null) return;
+    const blob = await matrixToBlob(current.matrix, { scale: Number(fields[3].value), shape: fields[2].value });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'qr.png';
+    link.click();
+    URL.revokeObjectURL(url);
+  });
+
+  for (const field of fields) field.addEventListener('input', render);
+  render();
+</script>

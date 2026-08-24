@@ -96,6 +96,8 @@ export default [
     languageOptions: {
       globals: {
         Blob: 'readonly',
+        CustomEvent: 'readonly',
+        FileReader: 'readonly',
         HTMLCanvasElement: 'readonly',
         HTMLElement: 'readonly',
         Image: 'readonly',
@@ -106,6 +108,20 @@ export default [
         document: 'readonly',
         navigator: 'readonly',
         requestAnimationFrame: 'readonly',
+        window: 'readonly',
+      },
+    },
+  },
+  {
+    // Browser specs run assertions in Node but their page.evaluate callbacks run
+    // in the page, so both global sets are legitimate here.
+    files: ['test/browser/**/*.js'],
+    languageOptions: {
+      globals: {
+        Image: 'readonly',
+        Uint8Array: 'readonly',
+        customElements: 'readonly',
+        document: 'readonly',
         window: 'readonly',
       },
     },

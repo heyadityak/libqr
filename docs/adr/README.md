@@ -22,6 +22,7 @@ That distinction matters in a repo built largely by agents. A rule with no recor
 | [0012](0012-spec-data-placement-across-layers.md) | Spec data placement across layers | accepted | 2026-08-24 |
 | [0013](0013-option-normalization-placement.md) | Option normalisation lives in `util/` | accepted | 2026-08-24 |
 | [0014](0014-golden-vector-provenance.md) | Golden vectors declare their provenance | accepted | 2026-08-24 |
+| [0015](0015-renderer-only-sub-entry-points.md) | Sub-entry points export renderer-only functions | accepted | 2026-08-24 |
 
 ## Numbering
 

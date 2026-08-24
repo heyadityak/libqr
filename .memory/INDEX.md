@@ -6,7 +6,7 @@ in `docs/adr/` (`AGENTS.md` §9.8).
 
 ## Handoff
 
-- [M0-M7 complete, M8 is next](handoff/2026-08-24-milestones-m0-m7-complete.md) — clean milestone boundary; the 8 KB size budget is still unenforced, and the optional `exports` entry points do not resolve yet
+- [M0-M9 complete, M10 is next and last](handoff/2026-08-24-milestones-m0-m9-complete.md) — canvas, PNG, `<qr-code>` and `mount` all shipping and browser-tested; only Kanji mode and logo overlays remain
 
 ## Investigations
 

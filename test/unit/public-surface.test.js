@@ -9,8 +9,14 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import * as libqr from '../../src/index.js';
+import * as canvasEntry from '../../src/render/canvas.js';
+import * as svgEntry from '../../src/render/svg.js';
+import * as pngEntry from '../../src/render/png.js';
 
-const declarations = readFileSync(new URL('../../src/types/index.d.ts', import.meta.url), 'utf8');
+const declarationsFor = (name) =>
+  readFileSync(new URL(`../../src/types/${name}.d.ts`, import.meta.url), 'utf8');
+
+const declarations = declarationsFor('index');
 
 /** Value-level names the declaration file exports. Types are not runtime exports. */
 function declaredValueNames(source) {
@@ -70,5 +76,43 @@ describe('public surface', () => {
 
   it('has no default export', () => {
     expect(actual.has('default')).toBe(false);
+  });
+});
+
+describe('sub-entry points are renderer-only', () => {
+  // ADR-0015: each sub-entry takes a matrix rather than encoding, so its bundle
+  // is its marginal cost. A convenience wrapper here would drag the encoder in.
+  const cases = [
+    ['svg', svgEntry, ['matrixToSvg']],
+    ['canvas', canvasEntry, ['canvasSizeFor', 'matrixToCanvas']],
+    ['png', pngEntry, ['matrixToBlob', 'matrixToDataUrl']],
+  ];
+
+  for (const [name, module, expected] of cases) {
+    it(`libqr/${name} exports exactly ${expected.join(', ')}`, () => {
+      expect(Object.keys(module).sort()).toEqual(expected);
+    });
+
+    it(`libqr/${name} declarations match its runtime exports`, () => {
+      expect(declaredValueNames(declarationsFor(name))).toEqual(new Set(Object.keys(module)));
+    });
+
+    it(`libqr/${name} exports nothing that encodes`, () => {
+      for (const forbidden of ['qr', 'encode', 'toSvg', 'toCanvas', 'toDataUrl']) {
+        expect(Object.keys(module)).not.toContain(forbidden);
+      }
+    });
+  }
+});
+
+describe('every entry point has a types declaration', () => {
+  it('covers each exports specifier', () => {
+    const pkg = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8'));
+    for (const [specifier, target] of Object.entries(pkg.exports)) {
+      if (specifier === './package.json') continue;
+      // Kanji is M10; it has no source yet, so no declaration either.
+      if (specifier === './kanji') continue;
+      expect(target.types, `${specifier} has no types condition`).toBeDefined();
+    }
   });
 });

@@ -261,6 +261,11 @@ describe('selectVersion', () => {
     expect(() => selectVersion('9'.repeat(8000), { ecLevel: 'H' })).toThrow(CapacityError);
   });
 
+  it('rejects an encoding whose mode is not loaded', () => {
+    expect(() => selectVersion('text', { ecLevel: 'M', encoding: 'shift-jis' }))
+      .toThrow(/libqr\/kanji/);
+  });
+
   it('throws OptionError for an impossible version range', () => {
     expect(() => selectVersion('A', { ecLevel: 'L', minVersion: 10, maxVersion: 5 }))
       .toThrow(OptionError);

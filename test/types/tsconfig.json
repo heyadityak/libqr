@@ -10,5 +10,5 @@
     "baseUrl": ".",
     "paths": { "libqr": ["../../src/types/index.d.ts"] }
   },
-  "include": ["*.ts", "../../src/types/index.d.ts"]
+  "include": ["*.ts", "../../src/types/*.d.ts"]
 }

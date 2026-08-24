@@ -8,5 +8,8 @@ export default defineConfig({
     environment: 'node',
     include: ['test/**/*.test.js'],
     exclude: ['test/browser/**', 'node_modules/**'],
+    benchmark: {
+      include: ['bench/**/*.bench.js'],
+    },
   },
 });

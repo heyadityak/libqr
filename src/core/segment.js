@@ -18,7 +18,7 @@ import * as numeric from '../encode/numeric.js';
 import { ECI_LATIN1, ECI_UTF8 } from '../encode/eci.js';
 import { assert } from '../util/assert.js';
 import { latin1Bytes, utf8Bytes, utf8LengthOf } from '../util/text.js';
-import { countBitsFor } from './mode.js';
+import { Mode, countBitsFor, encoderFor } from './mode.js';
 
 /** Candidate modes, indexed by the dynamic program. Order is cheapest-first. */
 const CANDIDATES = [numeric, alphanumeric, byteMode];
@@ -45,6 +45,21 @@ const ALPHANUMERIC_UNITS = (11 / 2) * UNITS_PER_BIT; // 33
 /** @returns {(codePoint: number) => number} bytes a code point occupies */
 function byteLengthFor(encoding) {
   return encoding === 'latin1' ? () => 1 : utf8LengthOf;
+}
+
+/**
+ * Fails loudly if the requested encoding needs a mode that is not loaded.
+ *
+ * Without this, `encoding: 'shift-jis'` fell through to the UTF-8 byte-length
+ * path and silently produced a UTF-8 symbol -- the caller asked for one
+ * character set and got another, with no error. Exactly the silent-wrong-output
+ * failure ADR-0009 exists to prevent.
+ */
+function requireEncodingSupport(encoding) {
+  if (encoding === 'shift-jis') {
+    // Throws a ModeError naming the entry point to import (ADR-0006).
+    encoderFor(Mode.KANJI);
+  }
 }
 
 /** @returns {Uint8Array} text encoded under the given encoding */
@@ -77,10 +92,15 @@ function charUnits(modeIndex, codePoint, byteLength) {
  * @param {string} text payload
  * @param {object} options
  * @param {number} options.rangeIndex 0 for versions 1-9, 1 for 10-26, 2 for 27-40
- * @param {string} [options.encoding] 'utf-8' or 'latin1'
+ * @param {string} [options.encoding] 'utf-8' or 'latin1'; 'shift-jis' requires
+ *   the Kanji entry point and throws a ModeError without it
  * @returns {Segment[]} segments in payload order; empty for empty input
+ * @throws {import('../util/errors.js').ModeError} if the encoding needs an
+ *   unloaded mode
  */
 export function makeSegments(text, { rangeIndex, encoding = 'utf-8' }) {
+  requireEncodingSupport(encoding);
+
   const chars = Array.from(text);
   if (chars.length === 0) return [];
 

@@ -60,6 +60,45 @@ import { toAscii } from 'libqr';
 console.log(toAscii('HELLO WORLD', { quietZone: 2 }));
 ```
 
+### Canvas
+
+```js
+import { qr } from 'libqr';
+import { matrixToCanvas } from 'libqr/canvas';
+
+const ctx = document.querySelector('canvas').getContext('2d');
+matrixToCanvas(ctx, qr('https://example.com').matrix, { scale: 8 });
+```
+
+### PNG
+
+```js
+import { qr } from 'libqr';
+import { matrixToDataUrl, matrixToBlob } from 'libqr/png';
+
+img.src = await matrixToDataUrl(qr('DATA').matrix, { scale: 8 });
+const blob = await matrixToBlob(qr('DATA').matrix, { scale: 8 });
+```
+
+### The `<qr-code>` element
+
+```html
+<script type="module">import 'libqr/element';</script>
+<qr-code data="https://example.com" ec-level="Q" scale="6"></qr-code>
+```
+
+Attributes are reflected, so changing one re-renders. The element reports failures on itself — `element.error` — and fires `qr-render` and `qr-error`, rather than throwing from a lifecycle callback where a page author has no useful call site.
+
+### Mounting imperatively
+
+```js
+import { mount } from 'libqr/element';
+
+const code = mount('#container', 'https://example.com', { ecLevel: 'Q' });
+code.update('https://example.com/updated');
+code.destroy();
+```
+
 ### Rendering a matrix you already have
 
 ```js
@@ -69,6 +108,8 @@ const { matrix } = qr('DATA');
 const small = matrixToSvg(matrix, { scale: 2 });
 const large = matrixToSvg(matrix, { scale: 16, shape: 'dot' });
 ```
+
+**Why two imports for canvas and PNG?** So their weight stays out of bundles that do not use them, and so each entry point's size budget measures what that renderer actually costs. `libqr` itself only ever contains encoding, SVG, and text output.
 
 ## Options
 
@@ -122,27 +163,53 @@ The default entry point holds encoding, SVG, and text output. Everything else is
 | Import | Contents |
 | --- | --- |
 | `libqr` | `qr`, `toSvg`, `toAscii`, `encode`, `matrixToSvg`, `matrixToAscii`, errors, constants |
-| `libqr/svg` | `matrixToSvg` alone |
-| `libqr/canvas` | Canvas rendering |
-| `libqr/png` | PNG output |
-| `libqr/kanji` | Shift-JIS mode. Import for side effect to enable `encoding: 'shift-jis'`. |
-| `libqr/element` | The `<qr-code>` custom element |
+| `libqr/svg` | `matrixToSvg` |
+| `libqr/canvas` | `matrixToCanvas`, `canvasSizeFor` |
+| `libqr/png` | `matrixToDataUrl`, `matrixToBlob` |
+| `libqr/element` | `<qr-code>` (defined on import), `QrCodeElement`, `defineElement`, `mount` |
+| `libqr/kanji` | Shift-JIS mode. Import for side effect to enable `encoding: 'shift-jis'`. Not built yet. |
+
+## Size
+
+Measured on the minified ESM bundle, gzipped:
+
+| Entry | Size | Budget |
+| --- | --- | --- |
+| `libqr` — encode + SVG + text | **6.99 KB** | 8 KB |
+| `libqr/svg` | 0.84 KB | 1 KB |
+| `libqr/canvas` | 0.74 KB | 1 KB |
+| `libqr/png` | 1.17 KB | 1.5 KB |
+| `libqr/element` | +336 B over `libqr` | +512 B |
+
+Enforced in CI, per entry point, and the gate fails on growth as well as on exceeding a budget. Internal invariant checks are stripped from the minified builds, so they cost nothing in production.
+
+`libqr/element` is measured as a delta because a custom element is driven by attributes — there is no call site to hand it a matrix, so it necessarily contains the encoder. Its total is 7.32 KB; the 336 bytes — the element plus `mount()` — is the number that tells you what they cost.
 
 ## Status
 
-Under construction. Complete and tested: encoding through to SVG and text output, all 40 versions, all four error-correction levels, all eight masks, numeric / alphanumeric / byte modes, and ECI. Canvas, PNG, Kanji mode, the custom element, and logo overlays are not built yet.
+Under construction. Complete and tested: encoding through to SVG, canvas, PNG, and text output; the `<qr-code>` element and `mount()`; all 40 versions, all four error-correction levels, all eight masks, numeric / alphanumeric / byte modes, ECI; and bundled ESM / CJS / IIFE output.
+
+Not built yet: Kanji mode and logo overlays. `libqr/kanji` is declared in `exports` but does not resolve; passing `encoding: 'shift-jis'` throws a `ModeError` naming the entry point to import, rather than silently producing something else.
 
 ## Contributing
 
 `AGENTS.md` is the operating manual — layering rules, testing requirements, and conventions. `docs/adr/` records why each of those rules exists.
 
 ```sh
-npm run lint          # layer boundaries, purity, typed errors
-npm test              # unit, golden, and roundtrip suites
-npm run test:types    # the hand-written .d.ts against real call sites
-npm run check:deps    # asserts the dependency list is still empty
-npm run check:tables  # asserts the committed spec tables match their generator
+npm run lint            # layer boundaries, purity, typed errors
+npm test                # unit, golden, and roundtrip suites
+npm run test:types      # the hand-written .d.ts against real call sites
+npm run check:deps      # asserts the dependency list is still empty
+npm run check:tables    # asserts the committed spec tables match their generator
+npm run build           # bundles into dist/
+npm run size            # per-entry gzip budgets; also fails on any growth
+npm run check:bundles   # the built bundles load and encode
+npm run bench           # performance guards
+npm run test:browser    # canvas, PNG, and <qr-code> in Chromium
+npm run serve           # static server for examples/ and the browser harness
 ```
+
+`npm run size` fails on growth as well as on exceeding a budget, so an increase has to be recorded deliberately with `npm run size:accept`. That puts the new number in the diff where a reviewer sees it, instead of letting the budget drift up a few bytes at a time.
 
 ## License
 

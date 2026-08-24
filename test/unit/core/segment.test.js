@@ -11,6 +11,7 @@ import {
 } from '../../../src/core/segment.js';
 import { countBitsFor, versionRangeIndex } from '../../../src/core/mode.js';
 import { BitBuffer } from '../../../src/util/bitbuffer.js';
+import { ModeError } from '../../../src/util/errors.js';
 import { bitString } from '../../helpers/bits.js';
 
 const segmentsFor = (text, version, encoding = 'utf-8') =>
@@ -180,6 +181,43 @@ describe('count indicator widths follow the version range', () => {
     writeSegments(at9, segmentsFor(text, 9), 9);
     writeSegments(at10, segmentsFor(text, 10), 10);
     expect(at10.bitLength - at9.bitLength).toBe(2); // numeric: 10 bits -> 12
+  });
+});
+
+describe('unsupported encodings fail loudly', () => {
+  // Regression: shift-jis used to fall through to the UTF-8 byte-length path,
+  // so a caller asking for Shift-JIS silently got a UTF-8 symbol with no error.
+  it('rejects shift-jis without the Kanji entry point', () => {
+    expect(() => segmentsFor('text', 1, 'shift-jis')).toThrow(ModeError);
+  });
+
+  it('names the entry point to import', () => {
+    expect(() => segmentsFor('text', 1, 'shift-jis')).toThrow(/libqr\/kanji/);
+  });
+
+  it('rejects it for empty input too, rather than returning early', () => {
+    expect(() => segmentsFor('', 1, 'shift-jis')).toThrow(ModeError);
+  });
+
+  it('does not silently encode as UTF-8', () => {
+    let segments = null;
+    try {
+      segments = segmentsFor('abc', 1, 'shift-jis');
+    } catch {
+      segments = 'threw';
+    }
+    expect(segments).toBe('threw');
+  });
+
+  it('still accepts utf-8 and latin1', () => {
+    expect(() => segmentsFor('café', 1, 'utf-8')).not.toThrow();
+    expect(() => segmentsFor('café', 1, 'latin1')).not.toThrow();
+  });
+
+  it('counts one byte per character under latin1', () => {
+    const [segment] = segmentsFor('café', 1, 'latin1');
+    expect(segment.mode).toBe('byte');
+    expect(segment.charCount).toBe(4);
   });
 });
 

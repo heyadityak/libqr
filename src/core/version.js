@@ -106,6 +106,10 @@ export function selectVersion(text, {
     );
   }
 
+  // Surface an unsupported encoding before any capacity arithmetic, so the
+  // error names the real problem rather than a downstream symptom.
+  makeSegments('', { rangeIndex: 0, encoding });
+
   const eci = eciFor(text, encoding);
   const eciBits = eci === undefined ? 0 : eciBitLength(eci);
 
