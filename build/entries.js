@@ -62,8 +62,22 @@ export const ENTRIES = [
     name: './kanji',
     input: 'src/encode/kanji.js',
     file: 'libqr-kanji',
-    budget: 12 * 1024,
-    note: 'M10, not built yet. Carries the Shift-JIS table, which is the whole reason it is a separate entry point.',
+    budget: 1536,
+    note: 'Shift-JIS support. Budgeted at 12 KB while it was assumed to ship a '
+      + 'mapping table; ADR-0016 derives that from the platform instead, so the '
+      + 'real figure is under a kilobyte and the budget was tightened to match.',
+  },
+  {
+    name: './logo',
+    input: 'src/render/logo.js',
+    file: 'libqr-logo',
+    budget: 1280,
+    note: 'centre-overlay budgeting and its SVG element. Its own entry point '
+      + 'because it is decoration, and it would otherwise cost the default path '
+      + '570 bytes and push libqr/svg 50% past its budget (ADR-0017). Budgeted at '
+      + '1 KB before the finder-clearance constraint existed; raised to 1.25 KB '
+      + 'for the second constraint and its error messages, which are most of the '
+      + 'weight and are the point.',
   },
   {
     name: './element',

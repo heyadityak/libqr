@@ -23,6 +23,10 @@ import { DOT_RADIUS, ROUNDED_RADIUS, Shape, escapeXml, num } from './shared/styl
  * @param {string} [options.light] background colour; pass null for transparent
  * @param {string} [options.shape] 'square', 'dot', or 'rounded'
  * @param {string} [options.title] accessible name for the symbol
+ * @param {string} [options.overlay] raw SVG markup drawn on top of the modules,
+ *   in module coordinates including the quiet zone. `libqr/logo` produces one
+ *   for a centre logo; anything else -- a caption, a frame -- is equally valid.
+ *   Not escaped: it is markup, and the caller owns it.
  * @returns {string} a complete SVG document
  */
 export function matrixToSvg(matrix, {
@@ -32,6 +36,7 @@ export function matrixToSvg(matrix, {
   light = '#ffffff',
   shape = Shape.SQUARE,
   title,
+  overlay,
 } = {}) {
   const { modules, pixels } = dimensions(matrix, { quietZone, scale });
 
@@ -55,6 +60,11 @@ export function matrixToSvg(matrix, {
   }
 
   parts.push(renderModules(matrix, { quietZone, dark, shape }));
+
+  if (overlay !== undefined && overlay !== null) {
+    parts.push(overlay);
+  }
+
   parts.push('</svg>');
 
   return parts.join('');
@@ -84,3 +94,4 @@ function renderModules(matrix, { quietZone, dark, shape }) {
     .join('');
   return `<path fill="${fill}" d="${path}"/>`;
 }
+

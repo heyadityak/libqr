@@ -18,14 +18,6 @@ export type ModuleShape = 'square' | 'dot' | 'rounded';
 /** Encoding mode name. */
 export type ModeName = 'numeric' | 'alphanumeric' | 'byte' | 'kanji';
 
-/** Centre overlay configuration. */
-export interface LogoOptions {
-  /** Image source, as a URL or data URI. */
-  src: string;
-  /** Overlay size as a fraction of the symbol, bounded by the EC budget. */
-  sizeRatio?: number;
-}
-
 /** Options accepted by every public function. Unknown keys are ignored. */
 export interface QrOptions {
   /** Error-correction level. Default `'M'`. */
@@ -52,8 +44,12 @@ export interface QrOptions {
   light?: string;
   /** Module shape. Default `'square'`. */
   shape?: ModuleShape;
-  /** Centre overlay. */
-  logo?: LogoOptions;
+  /**
+   * Raw SVG markup drawn on top of the modules, in module coordinates including
+   * the quiet zone. `libqr/logo` produces one for a centre logo; a caption or a
+   * frame is equally valid. Not escaped -- it is markup, and you own it.
+   */
+  overlay?: string;
   /** Explicit ECI assignment number, overriding inference. */
   eci?: number;
   /** Accessible name, rendered as an SVG `<title>`. */
@@ -121,6 +117,8 @@ export interface RenderOptions {
   light?: string | null;
   shape?: ModuleShape;
   title?: string;
+  /** Raw SVG markup drawn over the modules. See `QrOptions.overlay`. */
+  overlay?: string;
 }
 
 /** Options for text rendering. */

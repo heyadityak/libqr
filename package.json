@@ -1,6 +1,6 @@
 {
   "name": "libqr",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Zero-dependency QR code generator for the browser and Node",
   "license": "MIT",
   "author": "Aditya K",
@@ -29,6 +29,11 @@
       "types": "./src/types/png.d.ts",
       "require": "./dist/libqr-png.cjs",
       "default": "./src/render/png.js"
+    },
+    "./logo": {
+      "types": "./src/types/logo.d.ts",
+      "require": "./dist/libqr-logo.cjs",
+      "default": "./src/render/logo.js"
     },
     "./kanji": {
       "require": "./dist/libqr-kanji.cjs",

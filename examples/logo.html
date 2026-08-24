@@ -1,0 +1,98 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>libqr — centre logo</title>
+<style>
+  body { font: 16px/1.5 system-ui, sans-serif; margin: 2rem auto; max-width: 44rem; padding: 0 1rem; }
+  label { display: block; margin: 1rem 0 0.25rem; font-weight: 600; }
+  input, select { font: inherit; padding: 0.4rem; width: 100%; box-sizing: border-box; }
+  .row { display: flex; gap: 1rem; }
+  .row > * { flex: 1; }
+  #out { margin-top: 1.5rem; }
+  #out svg { max-width: 100%; height: auto; }
+  #meta { color: #555; font-size: 0.9rem; }
+  #error { color: #b00; }
+  .note { background: #fff8e1; border-left: 3px solid #f0b429; padding: 0.75rem; }
+</style>
+
+<h1>Centre logo</h1>
+
+<p class="note">A logo works by <strong>destroying modules</strong> and relying on error correction to recover them. The size is bounded by two limits: how much error correction is available, and keeping the finder patterns clear. Push the slider past either and it refuses — an oversized logo scans on a clean screen and fails on a printed label.</p>
+
+<label for="text">Payload</label>
+<input id="text" value="https://example.com/product/8f3a19c2">
+
+<div class="row">
+  <div>
+    <label for="level">Error correction</label>
+    <select id="level"><option>L</option><option>M</option><option>Q</option><option selected>H</option></select>
+  </div>
+  <div>
+    <label for="ratio">Logo size <span id="ratioValue">0.30</span></label>
+    <input id="ratio" type="range" min="0.05" max="0.6" step="0.01" value="0.30">
+  </div>
+</div>
+
+<div id="out"></div>
+<p id="meta"></p>
+<p id="error"></p>
+
+<script type="module">
+  import { loadLibqr } from './boot.js';
+
+  const [
+    { qr, matrixToSvg },
+    { logoOverlay, maxSizeRatio, clearanceRatio, effectiveMaxSizeRatio },
+  ] = await loadLibqr(['index.js', 'render/logo.js']);
+
+  // A tiny inline mark, so the page stays self-contained.
+  const MARK = `data:image/svg+xml;utf8,${encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40">'
+    + '<rect width="40" height="40" rx="8" fill="#fff"/>'
+    + '<circle cx="20" cy="20" r="13" fill="#0b6e4f"/>'
+    + '<path d="M13 21l5 5 9-11" stroke="#fff" stroke-width="3.5" fill="none" stroke-linecap="round"/></svg>',
+  )}`;
+
+  const text = document.getElementById('text');
+  const level = document.getElementById('level');
+  const ratio = document.getElementById('ratio');
+  const ratioValue = document.getElementById('ratioValue');
+  const out = document.getElementById('out');
+  const meta = document.getElementById('meta');
+  const error = document.getElementById('error');
+
+  function render() {
+    error.textContent = '';
+    ratioValue.textContent = Number(ratio.value).toFixed(2);
+
+    let result;
+    try {
+      result = qr(text.value, { ecLevel: level.value });
+    } catch (e) {
+      out.innerHTML = '';
+      meta.textContent = '';
+      error.textContent = `${e.name}: ${e.message}`;
+      return;
+    }
+
+    const budget = maxSizeRatio(level.value);
+    const clearance = clearanceRatio(result.matrix);
+    const limit = effectiveMaxSizeRatio(result.matrix, level.value);
+    meta.textContent = `version ${result.version} · ${result.size}×${result.size} modules · `
+      + `EC budget allows ${budget.toFixed(3)} · finder clearance allows ${clearance.toFixed(3)} · `
+      + `so the limit here is ${limit.toFixed(3)}`;
+
+    try {
+      const overlay = logoOverlay(result.matrix, { src: MARK, sizeRatio: Number(ratio.value) }, {
+        ecLevel: level.value,
+      });
+      out.innerHTML = matrixToSvg(result.matrix, { scale: 8, overlay });
+    } catch (e) {
+      // Refusing is the feature. Show the symbol without the logo, and say why.
+      out.innerHTML = matrixToSvg(result.matrix, { scale: 8 });
+      error.textContent = `${e.name}: ${e.message}`;
+    }
+  }
+
+  for (const field of [text, level, ratio]) field.addEventListener('input', render);
+  render();
+</script>

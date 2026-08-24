@@ -5,13 +5,24 @@
   body { font: 16px/1.6 system-ui, sans-serif; margin: 2rem auto; max-width: 40rem; padding: 0 1rem; }
   li { margin: 0.4rem 0; }
   code { background: #f2f2f2; padding: 0.1em 0.35em; border-radius: 3px; }
+  pre { background: #f2f2f2; padding: 0.75rem; border-radius: 4px; overflow-x: auto; }
+  .note { background: #fff8e1; border-left: 3px solid #f0b429; padding: 0.75rem; }
 </style>
 
 <h1>libqr examples</h1>
-<p>No build step — these pages import <code>../src/index.js</code> directly. Serve the repo root with <code>npm run serve</code>, then open <code>/examples/</code>.</p>
+<p>No build step — these pages import <code>../src/index.js</code> directly.</p>
+
+<p class="note"><strong>Serve the repository root, not this directory.</strong> These pages reach up into <code>src/</code>, so a server rooted at <code>examples/</code> cannot see it. From the repository root:</p>
+
+<pre>npm run serve        # then http://localhost:8974/examples/
+
+npx http-server .    # then http://localhost:8080/examples/</pre>
+
+<p>Get it wrong and each page says so, with the commands — rather than leaving a bare <code>404</code> in the console.</p>
 
 <ul>
   <li><a href="basic.html">basic</a> — SVG output, live options</li>
   <li><a href="canvas.html">canvas</a> — drawing into a canvas you own, and PNG download</li>
   <li><a href="element.html">custom element</a> — <code>&lt;qr-code&gt;</code> driven by attributes</li>
+  <li><a href="logo.html">centre logo</a> — the two size limits, and what happens past them</li>
 </ul>

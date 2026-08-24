@@ -237,3 +237,33 @@ describe('eciFor', () => {
     expect(eciFor('café', 'latin1')).toBe(3);
   });
 });
+
+describe('encodings refuse characters they cannot represent', () => {
+  // Regression: Latin-1 substituted '?' for anything above 0xFF, so a payload
+  // encoded under latin1 could decode to different text than was supplied --
+  // with no error. Same silent-wrong-output class as the shift-jis bug.
+  it('refuses a character Latin-1 cannot represent', () => {
+    expect(() => segmentsFor('漢字', 1, 'latin1')).toThrow(ModeError);
+  });
+
+  it('names the character and the encoding', () => {
+    expect(() => segmentsFor('漢', 1, 'latin1')).toThrow(/"漢"/);
+    expect(() => segmentsFor('漢', 1, 'latin1')).toThrow(/'latin1'/);
+  });
+
+  it("points at 'utf-8', which represents anything", () => {
+    expect(() => segmentsFor('漢', 1, 'latin1')).toThrow(/'utf-8'/);
+  });
+
+  it('still accepts everything Latin-1 does represent', () => {
+    expect(() => segmentsFor('café ÿ ± ¾', 1, 'latin1')).not.toThrow();
+    const [segment] = segmentsFor('café', 1, 'latin1');
+    expect(segment.charCount).toBe(4);
+  });
+
+  it('accepts any character under utf-8', () => {
+    for (const text of ['漢字', '😀', '한글', 'Ωμέγα', '€']) {
+      expect(() => segmentsFor(text, 1, 'utf-8')).not.toThrow();
+    }
+  });
+});

@@ -12,6 +12,7 @@ import * as libqr from '../../src/index.js';
 import * as canvasEntry from '../../src/render/canvas.js';
 import * as svgEntry from '../../src/render/svg.js';
 import * as pngEntry from '../../src/render/png.js';
+import * as logoEntry from '../../src/render/logo.js';
 
 const declarationsFor = (name) =>
   readFileSync(new URL(`../../src/types/${name}.d.ts`, import.meta.url), 'utf8');
@@ -67,9 +68,13 @@ describe('public surface', () => {
   });
 
   it('does not pull the optional entry points into the default path', () => {
-    // ADR-0006: canvas, PNG, Kanji, and the custom element are separate entry
-    // points. Re-exporting them here would put their weight in every bundle.
-    for (const name of ['toCanvas', 'toDataUrl', 'toPng', 'defineElement', 'mount']) {
+    // ADR-0006 / ADR-0017: canvas, PNG, Kanji, the custom element and logo
+    // overlays are separate entry points. Re-exporting any of them here would
+    // put their weight in every bundle.
+    for (const name of [
+      'toCanvas', 'toDataUrl', 'toPng', 'defineElement', 'mount',
+      'logoOverlay', 'validateLogo', 'maxSizeRatio',
+    ]) {
       expect(actual.has(name)).toBe(false);
     }
   });
@@ -86,6 +91,10 @@ describe('sub-entry points are renderer-only', () => {
     ['svg', svgEntry, ['matrixToSvg']],
     ['canvas', canvasEntry, ['canvasSizeFor', 'matrixToCanvas']],
     ['png', pngEntry, ['matrixToBlob', 'matrixToDataUrl']],
+    ['logo', logoEntry, [
+      'DEFAULT_SIZE_RATIO', 'FUNCTION_CLEARANCE', 'SAFETY_MARGIN', 'clearanceRatio',
+      'effectiveMaxSizeRatio', 'logoGeometry', 'logoOverlay', 'maxSizeRatio', 'validateLogo',
+    ]],
   ];
 
   for (const [name, module, expected] of cases) {
@@ -110,7 +119,8 @@ describe('every entry point has a types declaration', () => {
     const pkg = JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8'));
     for (const [specifier, target] of Object.entries(pkg.exports)) {
       if (specifier === './package.json') continue;
-      // Kanji is M10; it has no source yet, so no declaration either.
+      // Kanji registers a mode rather than exporting an API surface consumers
+      // call, so it has no declaration file of its own.
       if (specifier === './kanji') continue;
       expect(target.types, `${specifier} has no types condition`).toBeDefined();
     }

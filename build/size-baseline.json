@@ -1,10 +1,12 @@
 {
   "$comment": "Recorded by scripts/size-check.js --accept. Gzipped bytes of each entry point.",
   "sizes": {
-    ".": 7156,
-    "./svg": 857,
+    ".": 7334,
+    "./svg": 870,
     "./canvas": 760,
     "./png": 1193,
-    "./element": 7492
+    "./element": 7667,
+    "./kanji": 1052,
+    "./logo": 1090
   }
 }

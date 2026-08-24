@@ -53,5 +53,9 @@ const server = createServer((request, response) => {
 });
 
 server.listen(PORT, () => {
-  console.log(`serving ${ROOT} on http://localhost:${PORT}`);
+  // Print the examples URL, not just the root. The root is the thing people get
+  // wrong -- serving `examples/` instead of the repository puts `src/` outside
+  // it -- so say what is being served and where to go.
+  console.log(`serving ${ROOT}`);
+  console.log(`  examples: http://localhost:${PORT}/examples/`);
 });

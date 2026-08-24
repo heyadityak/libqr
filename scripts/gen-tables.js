@@ -169,17 +169,6 @@ export const ECLevel = Object.freeze({
 export const EC_LEVELS = Object.freeze(['L', 'M', 'Q', 'H']);
 
 /**
- * Approximate recovery capacity per level, as a fraction of codewords.
- * Informational -- used for logo-overlay budgeting, never for encoding.
- */
-export const EC_RECOVERY = Object.freeze({
-  L: 0.07,
-  M: 0.15,
-  Q: 0.25,
-  H: 0.30,
-});
-
-/**
  * Two-bit level indicator used in the format information field.
  *
  * NOT in level order -- L is 01 and M is 00. ISO/IEC 18004 Table 12.

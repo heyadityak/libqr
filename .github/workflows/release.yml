@@ -1,0 +1,72 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+# Publishing is irreversible, so every gate runs first and the job is scoped to
+# exactly the permissions provenance needs.
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          registry-url: https://registry.npmjs.org
+
+      - run: npm ci
+
+      # The full gate, not a subset. A tag is not a reason to skip checks.
+      - name: Dependencies are empty
+        run: npm run check:deps
+      - name: Lint
+        run: npm run lint
+      - name: Tables match generator
+        run: npm run check:tables
+      - name: Test
+        run: npm test
+      - name: Types
+        run: npm run test:types
+      - name: Build
+        run: npm run build
+      - name: Size budget
+        run: npm run size
+      - name: Bundles load and encode
+        run: npm run check:bundles
+
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+      - name: Browser tests
+        run: npm run test:browser
+
+      # A tag that disagrees with package.json means one of the two is wrong, and
+      # publishing either would be worse than failing here.
+      - name: Tag matches package version
+        run: |
+          tag="${GITHUB_REF_NAME#v}"
+          pkg="$(node -p "require('./package.json').version")"
+          if [ "$tag" != "$pkg" ]; then
+            echo "Tag $tag does not match package.json version $pkg" >&2
+            exit 1
+          fi
+          echo "Publishing version $pkg"
+
+      - name: Changelog has an entry for this version
+        run: |
+          pkg="$(node -p "require('./package.json').version")"
+          if ! grep -q "^## \[$pkg\]" CHANGELOG.md; then
+            echo "CHANGELOG.md has no '## [$pkg]' section" >&2
+            exit 1
+          fi
+
+      - name: Publish
+        run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

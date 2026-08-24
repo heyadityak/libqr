@@ -30,27 +30,55 @@
 </div>
 
 <script type="module">
-  import '../src/dom/element.js';
+  import { loadLibqr } from './boot.js';
+
+  // Importing the module is what defines <qr-code>; nothing is destructured.
+  await loadLibqr(['dom/element.js']);
 
   const input = document.getElementById('text');
   const status = document.getElementById('status');
   const codes = [...document.querySelectorAll('qr-code')];
 
-  // The element reports failures on itself rather than throwing, so a bad
-  // payload does not take the page down.
-  for (const code of codes) {
-    code.addEventListener('qr-error', (event) => {
+  /**
+   * Reads the current state off an element.
+   *
+   * The element also *reports* state -- `qr-render` and `qr-error` -- but events
+   * only reach listeners attached before they fire, and these elements render in
+   * `connectedCallback`, which the parser triggers before this module script
+   * runs. So the first render is always missed. Reading the properties covers it,
+   * and the events cover every render after.
+   *
+   * Worth knowing for any custom element: if the markup is in the HTML rather
+   * than created from script, assume it has already rendered by the time you get
+   * a listener on it.
+   */
+  function report(code) {
+    if (code.error !== null) {
       status.className = 'error';
-      status.textContent = `${event.detail.name}: ${event.detail.message}`;
-    });
+      status.textContent = `${code.error.name}: ${code.error.message}`;
+      return;
+    }
+    if (code.result === null) return;
+    status.className = '';
+    const { version, size, mask, ecLevel } = code.result;
+    status.textContent = `version ${version} · ${size}×${size} modules · level ${ecLevel} · mask ${mask}`;
   }
 
-  codes[0].addEventListener('qr-render', (event) => {
-    status.className = '';
-    status.textContent = `version ${event.detail.version} · ${event.detail.size}×${event.detail.size} modules`;
-  });
+  for (const code of codes) {
+    // The element reports failures on itself rather than throwing, so a bad
+    // payload does not take the page down.
+    code.addEventListener('qr-error', () => report(code));
+  }
+
+  codes[0].addEventListener('qr-render', () => report(codes[0]));
 
   input.addEventListener('input', () => {
     for (const code of codes) code.setAttribute('data', input.value);
   });
+
+  // Catch up on the render that already happened. With the element defined by an
+  // awaited import, upgrade happens when that import resolves -- which may be
+  // after or before this line, so wait for the definition to be certain.
+  await customElements.whenDefined('qr-code');
+  report(codes[0]);
 </script>

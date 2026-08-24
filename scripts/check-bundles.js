@@ -90,12 +90,40 @@ await check('bundles are self-contained', () => {
 
 await check('default bundle omits the optional entry points', () => {
   const source = readFileSync(dist('libqr.esm.min.js'), 'utf8');
-  // The string 'shift-jis' legitimately appears here -- the option validator
-  // lists it, and the ModeError path names it. What must be absent is the
-  // Shift-JIS *table*, and the size budget is what guards that.
-  for (const marker of ['toCanvas', 'toDataUrl', 'customElements', 'createElementNS']) {
+  // The string 'shift-jis' legitimately appears -- the option validator lists it
+  // as an accepted value. What must be absent is anything that *implements* it.
+  for (const marker of [
+    'toCanvas', 'toDataUrl', 'customElements', 'createElementNS',
+    'shift_jis', 'TextDecoder', 'Kanji-mode character',
+  ]) {
     assert(!source.includes(marker), `default bundle mentions ${marker}`);
   }
+});
+
+check('default bundle carries no Kanji machinery', async () => {
+  // ADR-0016 derives the Shift-JIS mapping from the platform decoder rather than
+  // shipping a table, so a leak shows up as `TextDecoder` in the default bundle
+  // rather than as a size jump. Checked from both directions.
+  const dflt = readFileSync(dist('libqr.esm.min.js'), 'utf8');
+  const kanji = readFileSync(dist('libqr-kanji.esm.min.js'), 'utf8');
+
+  assert(!dflt.includes('shift_jis'), 'default bundle references the Shift-JIS decoder');
+  assert(kanji.includes('shift_jis'), 'kanji bundle does not reference the Shift-JIS decoder, so the check above is vacuous');
+
+  const { qr } = await import('../dist/libqr.esm.min.js');
+  const japanese = qr('\u6f22\u5b57', { ecLevel: 'M' });
+  // Without the entry point the payload must still encode -- as UTF-8 byte mode.
+  assert(japanese.segments.every((s) => s.mode === 'byte'), 'default bundle used a non-byte mode for Japanese text');
+  assert(japanese.eci === 26, `expected ECI 26 for UTF-8 byte mode, got ${japanese.eci}`);
+});
+
+check('kanji bundle encodes Japanese text in Kanji mode', async () => {
+  const kanjiModule = await import('../dist/libqr-kanji.esm.min.js');
+  assert(typeof kanjiModule.canEncode === 'function', 'kanji bundle exports no canEncode');
+  // The ISO/IEC 18004 section 8.4.5 worked examples.
+  assert(kanjiModule.canEncode(0x70b9), 'kanji bundle cannot encode U+70B9');
+  assert(kanjiModule.canEncode(0x8317), 'kanji bundle cannot encode U+8317');
+  assert(!kanjiModule.canEncode(0x41), 'kanji bundle wrongly claims to encode ASCII A');
 });
 
 await check('default bundle refuses shift-jis rather than silently using UTF-8', async () => {

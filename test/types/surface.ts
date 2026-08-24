@@ -43,7 +43,7 @@ const everyOption: QrOptions = {
   dark: '#000000',
   light: '#ffffff',
   shape: 'rounded',
-  logo: { src: 'data:image/png;base64,AAAA', sizeRatio: 0.2 },
+  overlay: '<image x="10" y="10" width="5" height="5" href="data:image/png;base64,AAAA"/>',
   eci: 26,
   title: 'Order QR',
 };

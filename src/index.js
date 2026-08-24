@@ -57,6 +57,7 @@ export function toSvg(data, options) {
     light: opts.light,
     shape: opts.shape,
     title: options?.title,
+    overlay: opts.overlay,
   });
 }
 

@@ -36,7 +36,12 @@ const BROWSER_GLOBALS = [
 
 export default [
   {
-    ignores: ['dist/**', 'coverage/**', 'node_modules/**', 'examples/**'],
+    // examples/ holds HTML pages with inline module scripts, which eslint cannot
+    // parse without an HTML processor. They are covered instead by
+    // test/browser/examples.spec.js, which loads each page and asserts it both
+    // runs clean and does what it claims -- added after one shipped with a
+    // status line that never populated and nothing noticed.
+    ignores: ['dist/**', 'coverage/**', 'node_modules/**', 'examples/**', 'test-results/**'],
   },
   js.configs.recommended,
   {

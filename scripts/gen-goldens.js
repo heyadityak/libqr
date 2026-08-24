@@ -1,6 +1,13 @@
 /**
  * Writes the golden artefacts: matrix vectors and SVG snapshots.
  *
+ * **Do not import `src/encode/kanji.js` from here, directly or transitively.**
+ * Importing it registers Kanji mode process-wide, which changes the segmentation
+ * of every payload containing Japanese text -- and would silently rewrite every
+ * regression vector on the next regeneration. Kanji has its own tests
+ * (`test/unit/encode/kanji.test.js`, `test/roundtrip/kanji.test.js`) in files
+ * that vitest isolates.
+ *
  * Every vector declares a `source`. Entries sourced from published material are
  * independent conformance evidence; entries marked `regression` only lock in
  * current behaviour. Mixing the two without labelling them is how a regression

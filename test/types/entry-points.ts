@@ -9,12 +9,14 @@ import type { Matrix, QrResult } from '../../src/types/index.d.ts';
 import type { CanvasRenderOptions } from '../../src/types/canvas.d.ts';
 import type { PngRenderOptions } from '../../src/types/png.d.ts';
 import type { Mounted } from '../../src/types/element.d.ts';
+import type { LogoOptions } from '../../src/types/logo.d.ts';
 
 declare const api: typeof import('../../src/types/index.d.ts');
 declare const svg: typeof import('../../src/types/svg.d.ts');
 declare const canvas: typeof import('../../src/types/canvas.d.ts');
 declare const png: typeof import('../../src/types/png.d.ts');
 declare const element: typeof import('../../src/types/element.d.ts');
+declare const logo: typeof import('../../src/types/logo.d.ts');
 
 const matrix: Matrix = api.qr('DATA').matrix;
 
@@ -74,3 +76,22 @@ void mountedResult;
 
 declare const el: Element;
 void element.mount(el, 'DATA');
+
+// --- libqr/logo ------------------------------------------------------------
+const logoOptions: LogoOptions = { src: 'data:image/png;base64,AAAA', sizeRatio: 0.3 };
+
+const safetyMargin: number = logo.SAFETY_MARGIN;
+const defaultRatio: number = logo.DEFAULT_SIZE_RATIO;
+const budgetRatio: number = logo.maxSizeRatio('H');
+const clearance: number = logo.clearanceRatio(matrix);
+const effective: number = logo.effectiveMaxSizeRatio(matrix, 'Q');
+void [safetyMargin, defaultRatio, budgetRatio, clearance, effective];
+
+const validated: Required<LogoOptions> = logo.validateLogo(matrix, logoOptions, 'H');
+const placement: { x: number; y: number; size: number } =
+  logo.logoGeometry(matrix, { sizeRatio: validated.sizeRatio }, { quietZone: 4 });
+void placement;
+
+const overlayMarkup: string = logo.logoOverlay(matrix, logoOptions, { ecLevel: 'H', quietZone: 4 });
+void api.matrixToSvg(matrix, { overlay: overlayMarkup });
+void api.toSvg('DATA', { overlay: overlayMarkup });

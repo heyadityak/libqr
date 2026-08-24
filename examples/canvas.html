@@ -41,9 +41,13 @@
 <p id="error"></p>
 
 <script type="module">
-  import { qr } from '../src/index.js';
-  import { matrixToCanvas } from '../src/render/canvas.js';
-  import { matrixToBlob } from '../src/render/png.js';
+  import { loadLibqr } from './boot.js';
+
+  const [{ qr }, { matrixToCanvas }, { matrixToBlob }] = await loadLibqr([
+    'index.js',
+    'render/canvas.js',
+    'render/png.js',
+  ]);
 
   const fields = ['text', 'level', 'shape', 'scale'].map((id) => document.getElementById(id));
   const canvas = document.getElementById('canvas');

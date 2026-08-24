@@ -38,7 +38,9 @@
 <p id="error"></p>
 
 <script type="module">
-  import { qr, matrixToSvg } from '../src/index.js';
+  import { loadLibqr } from './boot.js';
+
+  const [{ qr, matrixToSvg }] = await loadLibqr(['index.js']);
 
   const fields = ['text', 'level', 'shape', 'scale'].map((id) => document.getElementById(id));
   const out = document.getElementById('out');

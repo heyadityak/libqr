@@ -99,6 +99,31 @@ code.update('https://example.com/updated');
 code.destroy();
 ```
 
+### Japanese text
+
+```js
+import 'libqr/kanji';
+import { toSvg } from 'libqr';
+
+toSvg('日本語のテキスト');  // Kanji mode: 13 bits per character, not 24
+```
+
+Importing the entry point registers the mode; the optimiser then uses it wherever it wins. Without the import, `encoding: 'shift-jis'` throws a `ModeError` naming the entry point rather than silently producing UTF-8.
+
+### Centre logo
+
+```js
+import { qr, matrixToSvg } from 'libqr';
+import { logoOverlay } from 'libqr/logo';
+
+const { matrix } = qr(url, { ecLevel: 'H' });
+const svg = matrixToSvg(matrix, {
+  overlay: logoOverlay(matrix, { src: dataUri, sizeRatio: 0.3 }, { ecLevel: 'H' }),
+});
+```
+
+A logo works by *destroying* modules and relying on error correction to recover them, so its size is bounded — by how much error correction is available, and by keeping the finder patterns clear. Ask for more and it throws. An oversized logo scans on a clean screen and fails on a printed label, so refusing is the feature.
+
 ### Rendering a matrix you already have
 
 ```js
@@ -131,6 +156,7 @@ Every function takes the same options object. Unknown keys are ignored, so passi
 | `shape` | `'square' \| 'dot' \| 'rounded'` | `'square'` | Module shape. |
 | `eci` | `0`–`999999` | inferred | Explicit ECI assignment, overriding inference. |
 | `title` | string | — | Accessible name, rendered as an SVG `<title>`. |
+| `overlay` | string | — | Raw SVG markup drawn over the modules. See `libqr/logo`. Not escaped. |
 
 Non-ASCII payloads get an ECI 26 (UTF-8) designator automatically, so they decode reliably rather than depending on the reader's default character set.
 
@@ -166,8 +192,9 @@ The default entry point holds encoding, SVG, and text output. Everything else is
 | `libqr/svg` | `matrixToSvg` |
 | `libqr/canvas` | `matrixToCanvas`, `canvasSizeFor` |
 | `libqr/png` | `matrixToDataUrl`, `matrixToBlob` |
+| `libqr/logo` | `logoOverlay`, `maxSizeRatio`, `clearanceRatio`, `validateLogo`, `logoGeometry` |
 | `libqr/element` | `<qr-code>` (defined on import), `QrCodeElement`, `defineElement`, `mount` |
-| `libqr/kanji` | Shift-JIS mode. Import for side effect to enable `encoding: 'shift-jis'`. Not built yet. |
+| `libqr/kanji` | Shift-JIS mode. Import for its side effect to register it. |
 
 ## Size
 
@@ -175,21 +202,37 @@ Measured on the minified ESM bundle, gzipped:
 
 | Entry | Size | Budget |
 | --- | --- | --- |
-| `libqr` — encode + SVG + text | **6.99 KB** | 8 KB |
-| `libqr/svg` | 0.84 KB | 1 KB |
+| `libqr` — encode + SVG + text | **7.16 KB** | 8 KB |
+| `libqr/svg` | 0.85 KB | 1 KB |
 | `libqr/canvas` | 0.74 KB | 1 KB |
 | `libqr/png` | 1.17 KB | 1.5 KB |
-| `libqr/element` | +336 B over `libqr` | +512 B |
+| `libqr/logo` | 1.06 KB | 1.25 KB |
+| `libqr/kanji` | 1.03 KB | 1.5 KB |
+| `libqr/element` | +333 B over `libqr` | +512 B |
 
 Enforced in CI, per entry point, and the gate fails on growth as well as on exceeding a budget. Internal invariant checks are stripped from the minified builds, so they cost nothing in production.
 
-`libqr/element` is measured as a delta because a custom element is driven by attributes — there is no call site to hand it a matrix, so it necessarily contains the encoder. Its total is 7.32 KB; the 336 bytes — the element plus `mount()` — is the number that tells you what they cost.
+`libqr/element` is measured as a delta because a custom element is driven by attributes — there is no call site to hand it a matrix, so it necessarily contains the encoder. Its total is 7.49 KB; the 333 bytes — the element plus `mount()` — is the number that tells you what they cost.
+
+`libqr/kanji` is a kilobyte because the Shift-JIS mapping is derived from the platform's own decoder rather than shipped as a table. That would have been about 14 KB.
 
 ## Status
 
-Under construction. Complete and tested: encoding through to SVG, canvas, PNG, and text output; the `<qr-code>` element and `mount()`; all 40 versions, all four error-correction levels, all eight masks, numeric / alphanumeric / byte modes, ECI; and bundled ESM / CJS / IIFE output.
+Feature-complete. All 40 versions, all four error-correction levels, all eight mask patterns, all four encoding modes with exact optimal segmentation, ECI, SVG / canvas / PNG / text rendering, the `<qr-code>` element, `mount()`, centre logos, and bundled ESM / CJS / IIFE output.
 
-Not built yet: Kanji mode and logo overlays. `libqr/kanji` is declared in `exports` but does not resolve; passing `encoding: 'shift-jis'` throws a `ModeError` naming the entry point to import, rather than silently producing something else.
+628 tests plus 52 in Chromium. Every encoding stage is checked against ISO/IEC 18004 worked examples bit for bit.
+
+## Documentation
+
+- [`docs/api.md`](docs/api.md) — every entry point and every export.
+- [`docs/adr/`](docs/adr/) — why the library is built the way it is.
+- `examples/` — runnable pages, no build step.
+
+  ```sh
+  npm run serve        # then http://localhost:8974/examples/
+  ```
+
+  Serve the **repository root**, not `examples/` — the pages import `../src/index.js`, so a server rooted at `examples/` cannot reach it. Each page detects that and prints the fix.
 
 ## Contributing
 
@@ -205,8 +248,8 @@ npm run build           # bundles into dist/
 npm run size            # per-entry gzip budgets; also fails on any growth
 npm run check:bundles   # the built bundles load and encode
 npm run bench           # performance guards
-npm run test:browser    # canvas, PNG, and <qr-code> in Chromium
-npm run serve           # static server for examples/ and the browser harness
+npm run test:browser    # canvas, PNG, <qr-code>, and the example pages, in Chromium
+npm run serve           # static server, rooted at the repo, for examples/ and the harness
 ```
 
 `npm run size` fails on growth as well as on exceeding a budget, so an increase has to be recorded deliberately with `npm run size:accept`. That puts the new number in the diff where a reviewer sees it, instead of letting the budget drift up a few bytes at a time.

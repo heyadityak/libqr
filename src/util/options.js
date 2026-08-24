@@ -38,7 +38,7 @@ export const DEFAULTS = Object.freeze({
   dark: '#000000',
   light: '#ffffff',
   shape: 'square',
-  logo: undefined,
+  overlay: undefined,
   eci: undefined,
 });
 
@@ -150,7 +150,7 @@ export function normalizeOptions(input = {}) {
     dark: requireColour(input.dark ?? DEFAULTS.dark, 'dark'),
     light: requireColour(input.light ?? DEFAULTS.light, 'light'),
     shape,
-    logo: input.logo,
+    overlay: input.overlay,
     eci,
   });
 }
